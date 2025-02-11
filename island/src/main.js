@@ -1,0 +1,270 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import gsap from 'gsap';
+
+let camera, scene, renderer;
+let controls;
+let islandObjects = [];
+let labels = [];
+let pins = [];
+
+init();
+
+function init() {
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(500, 350, 800);
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1b2a); // Dark blue cosmic color
+    scene.fog = new THREE.Fog(0x0d1b2a, 500, 900); // Foggy effect
+
+    scene.add(new THREE.HemisphereLight(0xf0f5f5, 0xd0dee7, 0.5));
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setAnimationLoop(animate);
+    document.body.appendChild(renderer.domElement);
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 2, 0);
+    controls.minDistance = 1;
+    controls.maxDistance = 500;
+    controls.maxPolarAngle = Math.PI / 2;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.1;
+    controls.update();
+
+    addStars(); // Add cosmic stars
+    loadIslands();
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('click', onClick);
+}
+
+// Function to add stars to the scene
+function addStars() {
+    const starGeometry = new THREE.BufferGeometry();
+    const starVertices = [];
+
+    for (let i = 0; i < 5000; i++) {
+        let x = (Math.random() - 0.5) * 3000;
+        let y = (Math.random() - 0.5) * 3000;
+        let z = (Math.random() - 0.5) * 3000;
+        starVertices.push(x, y, z);
+    }
+
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+
+    const starMaterial = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 2.5,
+        transparent: true,
+        opacity: 0.8,
+    });
+
+    const starField = new THREE.Points(starGeometry, starMaterial);
+    scene.add(starField);
+}
+
+
+
+function loadIslands() {
+    const loader = new GLTFLoader();
+    loader.load('models/floating_island.gltf', (gltf) => {
+        const originalIsland = gltf.scene;
+        console.log('Island loaded!');
+
+        const islandPositions = [
+            { x: 0, y: 0, z: 0 },
+            { x: 200, y: 0, z: 0 },
+            { x: -200, y: 100, z: 0 },
+            { x: -150, y: -80, z: 100 },
+            { x: -50, y: 70, z: -90 },
+            { x: 150, y: -80, z: 100 },
+            { x: 150, y: 80, z: 100 },
+        ];
+
+        const fixedScale = 30;
+
+        islandPositions.forEach((pos, i) => {
+            const island = originalIsland.clone();
+            island.position.set(pos.x, pos.y, pos.z);
+            island.scale.set(fixedScale, fixedScale, fixedScale);
+            scene.add(island);
+
+            // Store reference to island for raycasting
+            islandObjects.push({ object: island, position: new THREE.Vector3(pos.x, pos.y, pos.z) });
+
+            addPinOnIsland(island, pos);
+            addTextLabel(island, "Event " + (i + 1), pos);
+        });
+    }, undefined, (error) => {
+        console.error('Error loading island model:', error);
+    });
+}
+
+function addPinOnIsland(island, position) {
+    const pinHeight = 15;
+    const pinRadius = 5;
+
+    const pinGeometry = new THREE.ConeGeometry(pinRadius, pinHeight, 32);
+    const pinMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red pin
+    const pin = new THREE.Mesh(pinGeometry, pinMaterial);
+
+    pin.rotation.x = Math.PI;
+
+    const islandBoundingBox = new THREE.Box3().setFromObject(island);
+    const centerX = islandBoundingBox.getCenter(new THREE.Vector3()).x;
+    const centerY = islandBoundingBox.max.y + pinHeight / 2;
+    const centerZ = islandBoundingBox.getCenter(new THREE.Vector3()).z;
+
+    pin.position.set(centerX, centerY, centerZ);
+    scene.add(pin);
+
+    pins.push(pin);
+}
+
+function addTextLabel(island, text, position) {
+    const islandBoundingBox = new THREE.Box3().setFromObject(island);
+    const centerX = islandBoundingBox.getCenter(new THREE.Vector3()).x;
+    const centerY = islandBoundingBox.max.y; // Adjust label to be at the same Y as the pin
+    const centerZ = islandBoundingBox.getCenter(new THREE.Vector3()).z;
+
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = text;
+    label.style.position = 'absolute';
+    label.style.color = 'black';
+    label.style.fontSize = '30px';
+    label.style.fontWeight = 'bold';
+    label.style.fontFamily = 'Arial, sans-serif';
+    label.style.pointerEvents = 'none';
+    label.style.padding = '5px 10px';
+    label.style.borderRadius = '8px';
+    label.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    label.style.boxShadow = '0 4px 6px rgba(0,0,0,0.2)';
+    label.style.textAlign = 'center';
+
+    document.body.appendChild(label);
+    labels.push({ label, island });
+
+    updateLabelPosition(label, new THREE.Vector3(centerX, centerY, centerZ));
+
+    label.addEventListener('click', (event) => {
+        const popup = window.open('demo.html', '_blank');
+        if (!popup) {
+            alert('Popup blocked! Please allow popups in your browser settings.');
+        }
+    });
+}
+
+
+function updateLabelPosition(label, islandPosition) {
+    const vector = islandPosition.clone();
+    vector.project(camera);
+
+    const widthHalf = window.innerWidth / 2;
+    const heightHalf = window.innerHeight / 2;
+
+    const x = (vector.x * widthHalf) + widthHalf;
+    const y = -(vector.y * heightHalf) + heightHalf;
+
+    label.style.left = `${x}px`;
+    label.style.top = `${y}px`;
+    label.style.transform = 'translate(-50%, -100%)'; // Center it above the pin
+}
+
+
+
+function resize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+    controls.update();
+
+    labels.forEach(({ label, island }) => {
+        const islandBoundingBox = new THREE.Box3().setFromObject(island);
+        const centerX = islandBoundingBox.getCenter(new THREE.Vector3()).x;
+        const centerY = islandBoundingBox.max.y + 18;
+        const centerZ = islandBoundingBox.getCenter(new THREE.Vector3()).z;
+
+        updateLabelPosition(label, new THREE.Vector3(centerX, centerY, centerZ));
+    });
+
+    renderer.render(scene, camera);
+}
+
+function onClick(event) {
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(islandObjects.map(obj => obj.object), true);
+
+    if (intersects.length > 0) {
+        let clickedObject = intersects[0].object;
+
+        // Find the actual island in our array
+        while (clickedObject.parent && !islandObjects.some(obj => obj.object === clickedObject)) {
+            clickedObject = clickedObject.parent;
+        }
+
+        const islandData = islandObjects.find(obj => obj.object === clickedObject);
+        if (islandData) {
+            console.log("Island clicked:", clickedObject.name);
+
+            // Get the actual island position
+            const islandCenter = new THREE.Vector3(
+                islandData.position.x,
+                islandData.position.y,
+                islandData.position.z
+            );
+
+            // Move the camera to a closer position in front of the island
+            const directionToIsland = new THREE.Vector3().subVectors(camera.position, islandCenter).normalize();
+            
+            // Fixed scale of the island
+            const fixedScale = 30;
+
+            // Set zoom distance so the island fills 50% of the screen
+            const zoomDistance = fixedScale * 2; // Adjust as needed
+            const newCameraPosition = islandCenter.clone().addScaledVector(directionToIsland, zoomDistance);
+
+            // Disable controls during animation
+            controls.enabled = false;
+
+            // Animate the camera movement and make it look at the island
+            gsap.to(camera.position, {
+                duration: 2,
+                x: newCameraPosition.x,
+                y: newCameraPosition.y,
+                z: newCameraPosition.z,
+                onUpdate: () => {
+                    camera.lookAt(islandCenter);
+                },
+                onComplete: () => {
+                    controls.enabled = true;
+                }
+            });
+
+            // Also animate the camera's `lookAt` target separately for smooth transition
+            gsap.to(controls.target, {
+                duration: 2,
+                x: islandCenter.x,
+                y: islandCenter.y,
+                z: islandCenter.z
+            });
+        }
+    }
+}
+
+
+
