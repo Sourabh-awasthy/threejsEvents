@@ -15,24 +15,35 @@
     <div id="info"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.clouds2.min.js"></script>
-
+    
     <script>
-      // Initialize Vanta effect
-      var setVanta = () => {
-        if (window.VANTA) {
-          window.VANTA.CLOUDS2({
-            el: ".s-page-1 .s-section-1 .s-section",
-            mouseControls: true,
-            touchControls: true,
-            gyroControls: false,
-            minHeight: 200.00,
-            minWidth: 200.00,
-            scale: 1.00
-          });
-        }
-      };
-      document.addEventListener("DOMContentLoaded", setVanta);
+    var setVanta = () => {
+      if (window.VANTA) {
+        window.VANTA.CLOUDS2({
+          el: ".s-page-1 .s-section-1 .s-section", 
+          mouseControls: true,
+          touchControls: true,
+          gyroControls: false,
+          minHeight: 200.00,
+          minWidth: 200.00,
+          scale: 1.00,
+          backgroundColor: 0x1c901c,
+          skyColor: 0x5bca81,
+          cloudColor: 0x33804d,
+          texturePath: "./texture.png" // Custom texture path
+        });
+      }
+    };
+    
+    document.addEventListener("DOMContentLoaded", function() {
+      setVanta(); 
+    
+      if (window.edit_page && window.edit_page.Event) {
+        window.edit_page.Event.subscribe("Page.beforeNewOneFadeIn", setVanta); 
+      }
+    });
     </script>
+    
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

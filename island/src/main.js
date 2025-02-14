@@ -13,11 +13,11 @@ init();
 
 function init() {
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(500, 350, 800);
+    camera.position.set(800, 450, 1200);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0d1b2a); // Dark blue cosmic color
-    scene.fog = new THREE.Fog(0x0d1b2a, 500, 900); // Foggy effect
+    scene.background = new THREE.Color(0x0d1b2a); 
+    scene.fog = new THREE.Fog(0x0d1b2a, 500, 900);
     const textureLoader = new THREE.TextureLoader();
     const backgroundTexture = textureLoader.load('galaxy3.jpg'); // background image
     scene.background = backgroundTexture;
@@ -52,7 +52,7 @@ function init() {
     controls.maxDistance = 500;
     controls.maxPolarAngle = Math.PI / 2;
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.1;
+    controls.autoRotateSpeed = 0.5;
     controls.update();
 
     addStars(); 
@@ -66,7 +66,7 @@ function addStars() {
     const starGeometry = new THREE.BufferGeometry();
     const starVertices = [];
 
-    for (let i = 0; i < 8000; i++) {
+    for (let i = 0; i < 20000; i++) {
         let x = (Math.random() - 0.5) * 3000;
         let y = (Math.random() - 0.5) * 3000;
         let z = (Math.random() - 0.5) * 3000;
@@ -79,7 +79,7 @@ function addStars() {
         color: 0xffffff,
         size: 2.5,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.7,
     });
 
     const starField = new THREE.Points(starGeometry, starMaterial);
@@ -90,11 +90,16 @@ function loadIslands() {
     const islandModels = [
         'models/floating_island.gltf',
         'models/islanddd.gltf',
-        'models/lighthouse/scene.gltf',
-        'models/floating_island/scene.gltf',
+        'models/floating_island1/scene.gltf',
         'models/floating_island2/scene.gltf',
         'models/floating_island3/scene.gltf',
         'models/floating_island4/scene.gltf',
+        'models/floating_island5/scene.gltf',
+        'models/floating_island6/scene.gltf',
+        'models/floating_island7/scene.gltf',
+        'models/floating_island8/scene.gltf',
+        'models/floating_island9/scene.gltf',
+        'models/floating_island10/scene.gltf',
     ];
 
     const loader = new GLTFLoader();
@@ -105,16 +110,21 @@ function loadIslands() {
             console.log('Island loaded:', modelPath);
 
             const islandPositions = [
-                { x: 0, y: 0, z: 0 },
-                { x: 220, y: 0, z: 0 },
-                { x: -180, y: 80, z: 0 },
-                { x: -130, y: -180, z: 100 },
-                { x: -90, y: 90, z: -160 },
+                { x: 0, y: 0, z: 0},
+                { x: -280, y: -40, z: 120 },
+                { x: 230, y: -50, z: -150 },
+                { x: 220, y: -30, z: 0 },
+                { x: -250, y: 60, z: 50 },
                 { x: 130, y: -60, z: 100 },
-                { x: 140, y: 80, z: -100 },
+                { x: 160, y: 80, z: -100 },
+                { x: -150, y: 90, z: -200 },
+                { x: -10, y: -180, z: 100 },
+                { x: 40, y: 90, z: -160 },
+                { x: -50, y: -80, z: 190 },
+                { x: -240, y: 80, z: -150 },
             ];
 
-            const eventNames = ['moustrap', 'phy', 'sum', 'log', 'error', 'doc', 'next']; 
+            const eventNames = ['Abhedya 4.0', 'Codequest Chronicle 2.0', 'Monopoly', 'CyberSiege', 'AeroQuest Glider', 'Chemystery 2.0', 'FilteRaid','Ohm Alone', 'Torque Dash', 'Triumph Cards','Breach-o-beach', 'Game on']; 
 
             const fixedScale = 110;
 
@@ -267,18 +277,12 @@ function onClick(event) {
 
             // Move the camera to a closer position in front of the island
             const directionToIsland = new THREE.Vector3().subVectors(camera.position, islandCenter).normalize();
-            
-            // Fixed scale of the island
             const fixedScale = 120;
-
-            // Set zoom distance so the island fills 50% of the screen
-            const zoomDistance = fixedScale * 2; // Adjust as needed
+            const zoomDistance = fixedScale * 2; 
             const newCameraPosition = islandCenter.clone().addScaledVector(directionToIsland, zoomDistance);
 
-            // Disable controls during animation
             controls.enabled = false;
 
-            // Animate the camera movement and make it look at the island
             gsap.to(camera.position, {
                 duration: 2,
                 x: newCameraPosition.x,
