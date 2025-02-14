@@ -18,14 +18,33 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1b2a); // Dark blue cosmic color
     scene.fog = new THREE.Fog(0x0d1b2a, 500, 900); // Foggy effect
+    const textureLoader = new THREE.TextureLoader();
+    const backgroundTexture = textureLoader.load('galaxy3.jpg'); // background image
+    scene.background = backgroundTexture;
 
     scene.add(new THREE.HemisphereLight(0xf0f5f5, 0xd0dee7, 0.5));
 
+   
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 5).normalize();
+    scene.add(directionalLight);
+   
+    const pointLight = new THREE.PointLight(0xffffff, 1, 500);
+    pointLight.position.set(0, 200, 0); 
+    scene.add(pointLight);
+
+   
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setAnimationLoop(animate);
     document.body.appendChild(renderer.domElement);
+
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.gammaFactor = 2.2;
+    renderer.gammaOutput = true;
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 2, 0);
@@ -36,19 +55,18 @@ function init() {
     controls.autoRotateSpeed = 0.1;
     controls.update();
 
-    addStars(); // Add cosmic stars
-    loadIslands();
+    addStars(); 
+    loadIslands(); 
 
     window.addEventListener('resize', resize);
     window.addEventListener('click', onClick);
 }
 
-// Function to add stars to the scene
 function addStars() {
     const starGeometry = new THREE.BufferGeometry();
     const starVertices = [];
 
-    for (let i = 0; i < 5000; i++) {
+    for (let i = 0; i < 8000; i++) {
         let x = (Math.random() - 0.5) * 3000;
         let y = (Math.random() - 0.5) * 3000;
         let z = (Math.random() - 0.5) * 3000;
@@ -68,40 +86,60 @@ function addStars() {
     scene.add(starField);
 }
 
-
-
 function loadIslands() {
+    const islandModels = [
+        'models/floating_island.gltf',
+        'models/islanddd.gltf',
+        'models/lighthouse/scene.gltf',
+        'models/floating_island/scene.gltf',
+        'models/floating_island2/scene.gltf',
+        'models/floating_island3/scene.gltf',
+        'models/floating_island4/scene.gltf',
+    ];
+
     const loader = new GLTFLoader();
-    loader.load('models/floating_island.gltf', (gltf) => {
-        const originalIsland = gltf.scene;
-        console.log('Island loaded!');
 
-        const islandPositions = [
-            { x: 0, y: 0, z: 0 },
-            { x: 200, y: 0, z: 0 },
-            { x: -200, y: 100, z: 0 },
-            { x: -150, y: -80, z: 100 },
-            { x: -50, y: 70, z: -90 },
-            { x: 150, y: -80, z: 100 },
-            { x: 150, y: 80, z: 100 },
-        ];
+    islandModels.forEach((modelPath, i) => {
+        loader.load(modelPath, (gltf) => {
+            const originalIsland = gltf.scene;
+            console.log('Island loaded:', modelPath);
 
-        const fixedScale = 30;
+            const islandPositions = [
+                { x: 0, y: 0, z: 0 },
+                { x: 220, y: 0, z: 0 },
+                { x: -180, y: 80, z: 0 },
+                { x: -130, y: -180, z: 100 },
+                { x: -90, y: 90, z: -160 },
+                { x: 130, y: -60, z: 100 },
+                { x: 140, y: 80, z: -100 },
+            ];
 
-        islandPositions.forEach((pos, i) => {
+            const eventNames = ['moustrap', 'phy', 'sum', 'log', 'error', 'doc', 'next']; 
+
+            const fixedScale = 110;
+
+            const pos = islandPositions[i];
             const island = originalIsland.clone();
             island.position.set(pos.x, pos.y, pos.z);
-            island.scale.set(fixedScale, fixedScale, fixedScale);
+
+            const box = new THREE.Box3().setFromObject(island);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            const maxDimension = Math.max(size.x, size.y, size.z);
+            const scaleFactor = fixedScale / maxDimension;
+            island.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
             scene.add(island);
 
-            // Store reference to island for raycasting
             islandObjects.push({ object: island, position: new THREE.Vector3(pos.x, pos.y, pos.z) });
 
             addPinOnIsland(island, pos);
-            addTextLabel(island, "Event " + (i + 1), pos);
+            const eventName = eventNames[i];
+            addTextLabel(island, eventName, pos);
+        }, undefined, (error) => {
+            console.error('Error loading island model:', error);
         });
-    }, undefined, (error) => {
-        console.error('Error loading island model:', error);
     });
 }
 
@@ -140,12 +178,13 @@ function addTextLabel(island, text, position) {
     label.style.fontSize = '30px';
     label.style.fontWeight = 'bold';
     label.style.fontFamily = 'Arial, sans-serif';
-    label.style.pointerEvents = 'none';
+    label.style.pointerEvents = 'auto';
     label.style.padding = '5px 10px';
     label.style.borderRadius = '8px';
     label.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
     label.style.boxShadow = '0 4px 6px rgba(0,0,0,0.2)';
     label.style.textAlign = 'center';
+    label.style.zIndex ='10';
 
     document.body.appendChild(label);
     labels.push({ label, island });
@@ -153,13 +192,13 @@ function addTextLabel(island, text, position) {
     updateLabelPosition(label, new THREE.Vector3(centerX, centerY, centerZ));
 
     label.addEventListener('click', (event) => {
-        const popup = window.open('demo.html', '_blank');
+        event.stopPropagation();
+        window.location.href = 'demo.html';
         if (!popup) {
             alert('Popup blocked! Please allow popups in your browser settings.');
         }
     });
 }
-
 
 function updateLabelPosition(label, islandPosition) {
     const vector = islandPosition.clone();
@@ -175,8 +214,6 @@ function updateLabelPosition(label, islandPosition) {
     label.style.top = `${y}px`;
     label.style.transform = 'translate(-50%, -100%)'; // Center it above the pin
 }
-
-
 
 function resize() {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -232,7 +269,7 @@ function onClick(event) {
             const directionToIsland = new THREE.Vector3().subVectors(camera.position, islandCenter).normalize();
             
             // Fixed scale of the island
-            const fixedScale = 30;
+            const fixedScale = 120;
 
             // Set zoom distance so the island fills 50% of the screen
             const zoomDistance = fixedScale * 2; // Adjust as needed
@@ -255,7 +292,6 @@ function onClick(event) {
                 }
             });
 
-            // Also animate the camera's `lookAt` target separately for smooth transition
             gsap.to(controls.target, {
                 duration: 2,
                 x: islandCenter.x,
@@ -265,6 +301,3 @@ function onClick(event) {
         }
     }
 }
-
-
-
